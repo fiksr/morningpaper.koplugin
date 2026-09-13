@@ -5,6 +5,7 @@ Coordinates daily morning newspaper fetching, in-app reading, and EPUB compilati
 
 local DataStorage = require("datastorage")
 local Device = require("device")
+local Dispatcher = require("dispatcher")
 local InfoMessage = require("ui/widget/infomessage")
 local InputDialog = require("ui/widget/inputdialog")
 local TextViewer = require("ui/widget/textviewer")
@@ -39,11 +40,52 @@ local MorningPaper = WidgetContainer:extend{
     is_doc_only = false,
 }
 
+
+function MorningPaper:onDispatcherRegisterActions()
+    Dispatcher:registerAction("morningpaper", {
+        category = "none",
+        event = "ShowMorningPaper",
+        title = _("Morning Paper"),
+        general = true,
+    })
+    Dispatcher:registerAction("morningpaper_read", {
+        category = "none",
+        event = "ReadMorningPaper",
+        title = _("Morning Paper: Read Today's News"),
+        general = true,
+    })
+    Dispatcher:registerAction("morningpaper_generate", {
+        category = "none",
+        event = "GenerateMorningPaper",
+        title = _("Morning Paper: Generate Today's Newspaper"),
+        general = true,
+    })
+end
+
+function MorningPaper:onShowMorningPaper()
+    local Menu = require("ui/widget/menu")
+    local menu = Menu:new{
+        title = _("Morning Paper"),
+        item_table = self:getSubMenuItems(),
+        is_borderless = true,
+    }
+    UIManager:show(menu)
+end
+
+function MorningPaper:onReadMorningPaper()
+    self:onReadInApp()
+end
+
+function MorningPaper:onGenerateMorningPaper()
+    self:onGenerateDailyEdition()
+end
+
 function MorningPaper:init()
     self.settings = Settings:new()
     self.fetcher = Fetcher:new(self.settings)
     self.ai = AIBriefing:new(self.settings)
     self.builder = EpubBuilder:new(self.settings)
+    self:onDispatcherRegisterActions()
 
     if self.ui and self.ui.menu then
         self.ui.menu:registerToMainMenu(self)
