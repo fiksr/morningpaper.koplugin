@@ -40,10 +40,7 @@ end
 
 function Parser.stripHtml(html)
     if not html then return "" end
-    local s = unescapeXml(html):gsub("[ -¤][
-8-91][
-8-91][
-8-91]", ""):gsub("984[d-9]", "")
+    local s = unescapeXml(html)
     -- Remove scripts, styles, iframes
     s = s:gsub("<script.-</script>", "")
          :gsub("<style.-</style>", "")
