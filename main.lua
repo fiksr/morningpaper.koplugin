@@ -45,19 +45,19 @@ function MorningPaper:onDispatcherRegisterActions()
     Dispatcher:registerAction("morningpaper", {
         category = "none",
         event = "ShowMorningPaper",
-        title = _("Morning Paper"),
+        title = _("🗞️ Morning Paper"),
         general = true,
     })
     Dispatcher:registerAction("morningpaper_read", {
         category = "none",
         event = "ReadMorningPaper",
-        title = _("Morning Paper: Read Today's News"),
+        title = _("🗞️ Read Today's News"),
         general = true,
     })
     Dispatcher:registerAction("morningpaper_generate", {
         category = "none",
         event = "GenerateMorningPaper",
-        title = _("Morning Paper: Generate Today's Newspaper"),
+        title = _("⚡ Generate Today's Newspaper"),
         general = true,
     })
 end
@@ -65,7 +65,7 @@ end
 function MorningPaper:onShowMorningPaper()
     local Menu = require("ui/widget/menu")
     local menu = Menu:new{
-        title = _("Morning Paper"),
+        title = _("🗞️ Morning Paper"),
         item_table = self:getSubMenuItems(),
         is_borderless = true,
     }
@@ -94,7 +94,7 @@ end
 
 function MorningPaper:addToMainMenu(menu_items)
     menu_items.morningpaper = {
-        text = _("MorningPaper"),
+        text = _("🗞️ Morning Paper"),
         sorting_hint = "more_tools",
         sub_item_table_func = function()
             return self:getSubMenuItems()
@@ -160,7 +160,7 @@ function MorningPaper:showSectionBrowser(sections)
     local out = {}
     local today_str = os.date("%Y-%m-%d")
     table.insert(out, "==================================================")
-    table.insert(out, "THE MORNING PAPER: " .. today_str)
+    table.insert(out, "🗞️ THE MORNING PAPER: " .. today_str)
     table.insert(out, "Daily Curated News & Executive Briefing")
     table.insert(out, "==================================================\n")
 
@@ -274,25 +274,25 @@ function MorningPaper:getSubMenuItems()
     local cur_dir = self.settings:getOutputDirectory()
     local items = {
         {
-            text = _("Read Today's News (In-App Reader)"),
+            text = _("🗞️ Read Today's News (In-App Reader)"),
             callback = function()
                 self:onReadInApp()
             end,
         },
         {
-            text = _("Download & Open Today's EPUB"),
+            text = _("⚡ Download & Open Today's EPUB"),
             callback = function()
                 self:onCompileEpub()
             end,
         },
         {
-            text = _("Feed Subscriptions & Presets"),
+            text = _("📡 Feed Subscriptions & Presets"),
             sub_item_table_func = function()
                 return self:getFeedSubMenuItems()
             end,
         },
         {
-            text = _("Add Custom Feed (RSS / Substack / Reddit)"),
+            text = _("➕ Add Custom Feed (RSS / Substack / Reddit)"),
             callback = function()
                 self:showAddCustomFeedDialog()
             end,
