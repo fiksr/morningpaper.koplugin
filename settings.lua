@@ -1,6 +1,6 @@
 --[[--
 MorningPaper Settings Manager.
-Handles feed subscriptions, AI executive summary preferences, and archive paths.
+Handles feed subscriptions, AI executive summary preferences, custom save paths, and in-app cache.
 --]]--
 
 local DataStorage = require("datastorage")
@@ -10,15 +10,15 @@ local Settings = {}
 Settings.__index = Settings
 
 local DEFAULT_PRESET_FEEDS = {
-    { id = "hn", name = "💻 Hacker News Top", type = "rss", url = "https://news.ycombinator.com/rss", enabled = true },
-    { id = "arstechnica", name = "⚡ Ars Technica", type = "rss", url = "https://feeds.arstechnica.com/arstechnica/index", enabled = true },
-    { id = "bbc_world", name = "🌐 BBC World News", type = "rss", url = "https://feeds.bbci.co.uk/news/world/rss.xml", enabled = true },
-    { id = "quanta", name = "🧪 Quanta Magazine", type = "rss", url = "https://api.quantamagazine.org/feed/", enabled = true },
-    { id = "guardian_world", name = "🌍 The Guardian World", type = "rss", url = "https://www.theguardian.com/world/rss", enabled = true },
-    { id = "lobsters", name = "🦞 Lobste.rs Tech", type = "rss", url = "https://lobste.rs/rss", enabled = true },
-    { id = "pragmatic_eng", name = "✍️ The Pragmatic Engineer", type = "rss", url = "https://newsletter.pragmaticengineer.com/feed", enabled = false },
-    { id = "n1_serbia", name = "🇷🇸 N1 Srbija", type = "rss", url = "https://n1info.rs/feed/", enabled = false },
-    { id = "danas_serbia", name = "🇷🇸 Danas", type = "rss", url = "https://www.danas.rs/feed/", enabled = false },
+    { id = "hn", name = "Hacker News Top", type = "rss", url = "https://news.ycombinator.com/rss", enabled = true },
+    { id = "arstechnica", name = "Ars Technica", type = "rss", url = "https://feeds.arstechnica.com/arstechnica/index", enabled = true },
+    { id = "bbc_world", name = "BBC World News", type = "rss", url = "https://feeds.bbci.co.uk/news/world/rss.xml", enabled = true },
+    { id = "quanta", name = "Quanta Magazine", type = "rss", url = "https://api.quantamagazine.org/feed/", enabled = true },
+    { id = "guardian_world", name = "The Guardian World", type = "rss", url = "https://www.theguardian.com/world/rss", enabled = true },
+    { id = "lobsters", name = "Lobste.rs Tech", type = "rss", url = "https://lobste.rs/rss", enabled = true },
+    { id = "pragmatic_eng", name = "The Pragmatic Engineer", type = "rss", url = "https://newsletter.pragmaticengineer.com/feed", enabled = false },
+    { id = "n1_serbia", name = "N1 Srbija", type = "rss", url = "https://n1info.rs/feed/", enabled = false },
+    { id = "danas_serbia", name = "Danas", type = "rss", url = "https://www.danas.rs/feed/", enabled = false },
 }
 
 local DEFAULT_MODELS = {
@@ -87,18 +87,20 @@ end
 
 function Settings:getApiKey(prov)
     prov = prov or self:getProvider()
-    -- Check morningpaper specific key first
     local val = self:get("api_key_" .. prov, "")
     if val and #val > 0 then return val end
-    
-    -- Fallback to shared bookrecap key if already set by user
+
     if G_reader_settings then
         local shared = G_reader_settings:readSetting("bookrecap_api_key_" .. prov)
         if shared and #shared > 0 then return shared end
-        local shared_legacy = G_reader_settings:readSetting("bookrecap_api_key")
-        if shared_legacy and #shared_legacy > 0 then
-            if prov == "groq" and shared_legacy:sub(1, 4) == "gsk_" then return shared_legacy end
-            if prov == "gemini" and shared_legacy:sub(1, 4) == "AIza" then return shared_legacy end
+
+        local shared_mm = G_reader_settings:readSetting("mindmap_api_key_" .. prov)
+        if shared_mm and #shared_mm > 0 then return shared_mm end
+
+        local legacy = G_reader_settings:readSetting("bookrecap_api_key")
+        if legacy and #legacy > 0 then
+            if prov == "groq" and legacy:sub(1, 4) == "gsk_" then return legacy end
+            if prov == "gemini" and legacy:sub(1, 4) == "AIza" then return legacy end
         end
     end
     return ""
@@ -142,7 +144,7 @@ function Settings:addCustomFeed(name, feed_type, url_or_sub)
     table.insert(customs, {
         id = "custom_" .. os.time() .. "_" .. math.random(100, 999),
         name = name,
-        type = feed_type, -- "rss", "reddit", "substack"
+        type = feed_type,
         url = url_or_sub,
         subreddit = (feed_type == "reddit") and url_or_sub or nil,
         enabled = true,
@@ -161,17 +163,30 @@ function Settings:removeCustomFeed(feed_id)
     self:save("custom_feeds", updated)
 end
 
+-- Output Directory Configuration
 function Settings:getOutputDirectory()
-    local default_dir = "/mnt/us/documents/MorningPaper"
-    if lfs.attributes("/mnt/us", "mode") == "directory" then
-        pcall(lfs.mkdir, "/mnt/us/documents")
-        pcall(lfs.mkdir, "/mnt/us/documents/MorningPaper")
-        return default_dir
+    local custom_dir = self:get("custom_output_dir", nil)
+    if custom_dir and #custom_dir > 0 then
+        pcall(lfs.mkdir, custom_dir)
+        return custom_dir
     end
-    local data_dir = DataStorage:getFullDataDir() .. "/documents/MorningPaper"
-    pcall(lfs.mkdir, DataStorage:getFullDataDir() .. "/documents")
+
+    -- Smart default search for Kindle / Kobo
+    if lfs.attributes("/mnt/us/books", "mode") == "directory" then
+        return "/mnt/us/books"
+    elseif lfs.attributes("/mnt/us/documents", "mode") == "directory" then
+        return "/mnt/us/documents"
+    elseif lfs.attributes("/mnt/us", "mode") == "directory" then
+        return "/mnt/us"
+    end
+
+    local data_dir = DataStorage:getFullDataDir() .. "/documents"
     pcall(lfs.mkdir, data_dir)
     return data_dir
+end
+
+function Settings:setOutputDirectory(dir)
+    self:save("custom_output_dir", dir)
 end
 
 return Settings

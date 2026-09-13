@@ -1,12 +1,13 @@
 --[[--
 MorningPaper Main Plugin for KOReader.
-Coordinates daily morning newspaper fetching, AI executive summaries, and EPUB compilation.
+Coordinates daily morning newspaper fetching, in-app reading, and EPUB compilation.
 --]]--
 
 local DataStorage = require("datastorage")
 local Device = require("device")
 local InfoMessage = require("ui/widget/infomessage")
 local InputDialog = require("ui/widget/inputdialog")
+local TextViewer = require("ui/widget/textviewer")
 local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local lfs = require("libs/libkoreader-lfs")
@@ -60,15 +61,14 @@ function MorningPaper:addToMainMenu(menu_items)
     }
 end
 
-function MorningPaper:onFetchPaper()
-    local today_str = os.date("%Y-%m-%d")
+-- Fetch and return sections with optional AI summaries
+function MorningPaper:fetchSections(on_done)
     local info = InfoMessage:new{
-        text = _("🗞️ Fetching Today's Morning Paper...\nConnecting to active news feeds over Wi-Fi."),
+        text = _("Fetching Today's News...\nConnecting to active news feeds over Wi-Fi."),
     }
     UIManager:show(info)
 
     UIManager:scheduleIn(0.2, function()
-        -- 1. Fetch active sections
         local sections = self.fetcher:fetchAllActiveFeeds()
         UIManager:close(info)
 
@@ -80,18 +80,16 @@ function MorningPaper:onFetchPaper()
             return
         end
 
-        -- 2. Optional AI Executive Briefings
         local ai_enabled = self.settings:isAiEnabled()
         local ai_key = self.settings:getApiKey()
         if ai_enabled and #ai_key > 0 then
             local ai_info = InfoMessage:new{
-                text = _("⚡ Generating AI Executive Briefings & Summaries..."),
+                text = _("Generating AI Executive Briefings..."),
             }
             UIManager:show(ai_info)
 
             for s_idx, sec in ipairs(sections) do
                 for a_idx, art in ipairs(sec.articles) do
-                    -- Summarize top 3 stories per section to save tokens and time
                     if a_idx <= 3 then
                         local summary, err = self.ai:summarizeArticle(art.title, art.summary)
                         if summary and #summary > 0 then
@@ -103,9 +101,69 @@ function MorningPaper:onFetchPaper()
             UIManager:close(ai_info)
         end
 
-        -- 3. Compile EPUB
+        if on_done then
+            on_done(sections)
+        end
+    end)
+end
+
+-- 1. In-App Interactive Reader (No EPUB needed)
+function MorningPaper:onReadInApp()
+    self:fetchSections(function(sections)
+        self:showSectionBrowser(sections)
+    end)
+end
+
+function MorningPaper:showSectionBrowser(sections)
+    local out = {}
+    local today_str = os.date("%Y-%m-%d")
+    table.insert(out, "==================================================")
+    table.insert(out, "THE MORNING PAPER: " .. today_str)
+    table.insert(out, "Daily Curated News & Executive Briefing")
+    table.insert(out, "==================================================\n")
+
+    for s_idx, sec in ipairs(sections) do
+        table.insert(out, string.format("\n=== SECTION %d: %s (%d stories) ===\n", s_idx, sec.title:upper(), #sec.articles))
+
+        for a_idx, art in ipairs(sec.articles) do
+            table.insert(out, string.format("[%d.%d] %s", s_idx, a_idx, art.title))
+            if art.author and #art.author > 0 then
+                table.insert(out, "Source: " .. art.author .. (art.date and (" • " .. art.date) or ""))
+            end
+
+            if art.ai_summary and #art.ai_summary > 0 then
+                table.insert(out, "\nEXECUTIVE BRIEFING:")
+                for line in art.ai_summary:gmatch("[^\r\n]+") do
+                    local clean = line:gsub("^[•%-%*]%s*", ""):gsub("^%s+", ""):gsub("%s+$", "")
+                    if #clean > 0 then
+                        table.insert(out, "  • " .. clean)
+                    end
+                end
+            end
+
+            if art.summary and #art.summary > 0 then
+                table.insert(out, "\nSUMMARY:")
+                table.insert(out, "  " .. art.summary:gsub("\n+", " "))
+            end
+            table.insert(out, "\n--------------------------------------------------\n")
+        end
+    end
+
+    local full_text = table.concat(out, "\n")
+    local viewer = TextViewer:new{
+        title = _("Today's Morning Paper"),
+        text = full_text,
+        text_type = "general",
+    }
+    UIManager:show(viewer)
+end
+
+-- 2. Compile & Save EPUB to designated folder
+function MorningPaper:onCompileEpub()
+    local today_str = os.date("%Y-%m-%d")
+    self:fetchSections(function(sections)
         local build_info = InfoMessage:new{
-            text = _("📚 Compiling Morning Paper EPUB..."),
+            text = _("Compiling Morning Paper EPUB..."),
         }
         UIManager:show(build_info)
 
@@ -114,11 +172,10 @@ function MorningPaper:onFetchPaper()
 
         if ok and epub_path then
             UIManager:show(InfoMessage:new{
-                text = string.format(_("🗞️ Morning Paper Ready!\nSaved to:\n%s"), epub_path),
-                timeout = 3,
+                text = string.format(_("Morning Paper Ready!\nSaved to:\n%s"), epub_path),
+                timeout = 4,
             })
 
-            -- Open the freshly compiled newspaper in KOReader immediately
             UIManager:scheduleIn(1.0, function()
                 if self.ui and self.ui.onOpenFile then
                     self.ui:onOpenFile(epub_path)
@@ -135,22 +192,65 @@ function MorningPaper:onFetchPaper()
     end)
 end
 
+function MorningPaper:showSetFolderDialog()
+    local cur_dir = self.settings:getOutputDirectory()
+    local dialog
+    dialog = InputDialog:new{
+        title = _("Set News EPUB Save Folder"),
+        input = cur_dir,
+        input_hint = _("e.g. /mnt/us/books or /mnt/us/"),
+        buttons = {
+            {
+                {
+                    text = _("Cancel"),
+                    id = "close",
+                    callback = function() UIManager:close(dialog) end,
+                },
+                {
+                    text = _("Save"),
+                    is_enter_default = true,
+                    callback = function()
+                        local val = dialog:getInputText():gsub("^%s+", ""):gsub("%s+$", "")
+                        UIManager:close(dialog)
+                        if #val > 0 then
+                            self.settings:setOutputDirectory(val)
+                            UIManager:show(InfoMessage:new{
+                                text = string.format(_("Save folder updated to:\n%s"), val),
+                                timeout = 3,
+                            })
+                        end
+                    end,
+                },
+            },
+        },
+    }
+    UIManager:show(dialog)
+    dialog:onShowKeyboard()
+end
+
 function MorningPaper:getSubMenuItems()
+    local cur_dir = self.settings:getOutputDirectory()
     local items = {
         {
-            text = _("🗞️ Fetch Today's Morning Paper"),
+            text = _("Read Today's News (In-App Reader)"),
             callback = function()
-                self:onFetchPaper()
+                self:onReadInApp()
             end,
         },
         {
-            text = _("📰 Feed Subscriptions & Presets"),
+            text = _("Download & Open Today's EPUB"),
+            callback = function()
+                self:onCompileEpub()
+            end,
+        },
+        {
+            text = _("Feed Subscriptions & Presets"),
             sub_item_table_func = function()
                 return self:getFeedSubMenuItems()
             end,
         },
         {
-            text = _("➕ Add Custom Feed (RSS / Substack / Reddit)"),
+            text = _("Add Custom Feed (RSS / Substack / Reddit)"),
             callback = function()
                 self:showAddCustomFeedDialog()
             end,
@@ -158,7 +258,7 @@ function MorningPaper:getSubMenuItems()
         {
             text_func = function()
                 local status = self.settings:isAiEnabled() and _("ON (3-Bullet Summaries)") or _("OFF (Raw Articles)")
-                return string.format(_("🧠 AI Executive Briefing: %s"), status)
+                return string.format(_("AI Executive Briefing: %s"), status)
             end,
             checked_func = function() return self.settings:isAiEnabled() end,
             callback = function()
@@ -168,17 +268,17 @@ function MorningPaper:getSubMenuItems()
         {
             text_func = function()
                 local lang = self.settings:getLanguage()
-                local label = (lang == "serbian") and _("🇷🇸 Serbian (Srpski)") or _("🇬🇧 English")
-                return string.format(_("🌐 Briefing Language: %s"), label)
+                local label = (lang == "serbian") and _("Serbian (Srpski - Latin)") or _("English")
+                return string.format(_("Briefing Language: %s"), label)
             end,
             sub_item_table = {
                 {
-                    text = _("🇬🇧 English"),
+                    text = _("English"),
                     checked_func = function() return self.settings:getLanguage() == "english" end,
                     callback = function() self.settings:setLanguage("english") end,
                 },
                 {
-                    text = _("🇷🇸 Serbian (Srpski - Latin)"),
+                    text = _("Serbian (Srpski - Latin)"),
                     checked_func = function() return self.settings:getLanguage() == "serbian" end,
                     callback = function() self.settings:setLanguage("serbian") end,
                 },
@@ -186,10 +286,36 @@ function MorningPaper:getSubMenuItems()
         },
         {
             text_func = function()
+                return string.format(_("Save Folder: %s"), self.settings:getOutputDirectory())
+            end,
+            sub_item_table = {
+                {
+                    text = _("/mnt/us/books (Kindle Books Folder)"),
+                    checked_func = function() return self.settings:getOutputDirectory() == "/mnt/us/books" end,
+                    callback = function() self.settings:setOutputDirectory("/mnt/us/books") end,
+                },
+                {
+                    text = _("/mnt/us/ (Kindle Root Directory)"),
+                    checked_func = function() return self.settings:getOutputDirectory() == "/mnt/us" end,
+                    callback = function() self.settings:setOutputDirectory("/mnt/us") end,
+                },
+                {
+                    text = _("/mnt/us/documents (Kindle Documents)"),
+                    checked_func = function() return self.settings:getOutputDirectory() == "/mnt/us/documents" end,
+                    callback = function() self.settings:setOutputDirectory("/mnt/us/documents") end,
+                },
+                {
+                    text = _("Custom Folder Path..."),
+                    callback = function() self:showSetFolderDialog() end,
+                },
+            },
+        },
+        {
+            text_func = function()
                 local prov = self.settings:getProvider()
                 local key = self.settings:getApiKey(prov)
-                local status = (#key > 0) and _("✓ configured") or _("✗ not set")
-                return string.format(_("🤖 AI Provider: %s (%s)"), prov:upper(), status)
+                local status = (#key > 0) and _("configured") or _("not set")
+                return string.format(_("AI Provider: %s (%s)"), prov:upper(), status)
             end,
             sub_item_table = {
                 {
@@ -205,7 +331,7 @@ function MorningPaper:getSubMenuItems()
             },
         },
         {
-            text = _("📁 Browse Past Editions Archive"),
+            text = _("Browse Past Editions Archive"),
             callback = function()
                 local out_dir = self.settings:getOutputDirectory()
                 if self.ui and self.ui.onOpenFile then
