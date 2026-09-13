@@ -159,7 +159,7 @@ function MorningPaper:showSectionBrowser(sections)
     local out = {}
     local today_str = os.date("%Y-%m-%d")
     table.insert(out, "==================================================")
-    table.insert(out, "️ THE MORNING PAPER: ".. today_str)
+    table.insert(out, "THE MORNING PAPER: " .. today_str)
     table.insert(out, "Daily Curated News & Executive Briefing")
     table.insert(out, "==================================================\n")
 
@@ -169,7 +169,8 @@ function MorningPaper:showSectionBrowser(sections)
         for a_idx, art in ipairs(sec.articles) do
             table.insert(out, string.format("[%d.%d] %s", s_idx, a_idx, art.title))
             if art.author and #art.author > 0 then
-                table.insert(out, "Source: ".. art.author .. (art.date and ("• ".. art.date) or ""))
+                local date_part = (art.date and #art.date > 0) and (" • " .. art.date) or ""
+                table.insert(out, "Source: " .. art.author .. date_part)
             end
 
             if art.ai_summary and #art.ai_summary > 0 then
@@ -177,14 +178,15 @@ function MorningPaper:showSectionBrowser(sections)
                 for line in art.ai_summary:gmatch("[^\r\n]+") do
                     local clean = line:gsub("^[•%-%*]%s*", ""):gsub("^%s+", ""):gsub("%s+$", "")
                     if #clean > 0 then
-                        table.insert(out, "• ".. clean)
+                        table.insert(out, "• " .. clean)
                     end
                 end
             end
 
             if art.summary and #art.summary > 0 then
                 table.insert(out, "\nSUMMARY:")
-                table.insert(out, "".. art.summary:gsub("\n+", ""))
+                local clean_sum = art.summary:gsub("[\r\n]+", " "):gsub("^%s+", ""):gsub("%s+$", "")
+                table.insert(out, clean_sum)
             end
             table.insert(out, "\n--------------------------------------------------\n")
         end

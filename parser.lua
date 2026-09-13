@@ -17,25 +17,25 @@ end
 
 local function unescapeXml(str)
     if not str then return "" end
-    str = str:gsub("<!%[CDATA%[(.-)%]%]%s*>", "%1")
-    str = str:gsub("&amp;", "&")
-             :gsub("&lt;", "<")
-             :gsub("&gt;", ">")
-             :gsub("&quot;", '"')
-             :gsub("&apos;", "'")
-             :gsub("&#39;", "'")
-             :gsub("&#8217;", "'")
-             :gsub("&#8216;", "'")
-             :gsub("&#8220;", '"')
-             :gsub("&#8221;", '"')
-             :gsub("&#8212;", "—")
-             :gsub("&#8211;", "–")
-             :gsub("&#(%d+);", function(n)
-                 local num = tonumber(n)
-                 if num and num < 256 then return string.char(num) end
-                 return ""
-             end)
-    return str
+    local s = str:gsub("<!%[CDATA%[([%s%S]-)%]%]%s*>", "%1")
+    s = s:gsub("&amp;", "&")
+         :gsub("&lt;", "<")
+         :gsub("&gt;", ">")
+         :gsub("&quot;", '"')
+         :gsub("&apos;", "'")
+         :gsub("&#39;", "'")
+         :gsub("&#8217;", "'")
+         :gsub("&#8216;", "'")
+         :gsub("&#8220;", '"')
+         :gsub("&#8221;", '"')
+         :gsub("&#8212;", "—")
+         :gsub("&#8211;", "–")
+         :gsub("&#(%d+);", function(n)
+             local num = tonumber(n)
+             if num and num < 256 then return string.char(num) end
+             return ""
+         end)
+    return s
 end
 
 function Parser.stripHtml(html)
@@ -46,35 +46,46 @@ function Parser.stripHtml(html)
          :gsub("<style.-</style>", "")
          :gsub("<iframe.-</iframe>", "")
          :gsub("<noscript.-</noscript>", "")
-    -- Convert block elements to newlines
-    s = s:gsub("<br%s*/?>", "\n")
-         :gsub("</p>", "\n\n")
-         :gsub("</div>", "\n")
-         :gsub("</li>", "\n")
-         :gsub("<h%d.->", "\n\n### ")
-         :gsub("</h%d>", "\n\n")
-    -- Strip remaining tags
-    s = s:gsub("<[^>]+>", "")
-    -- Clean multiple whitespace
-    s = s:gsub("&nbsp;", "")
-    s = s:gsub("[ \t]+", "")
-    s = s:gsub("\n%s*\n%s*\n+", "\n\n")
-    return s:gsub("^%s+", ""):gsub("%s+$", "")
+    -- Convert block elements to spaces and newlines
+    s = s:gsub("<br%s*/?>", "
+")
+         :gsub("</p>", "
+
+")
+         :gsub("</div>", "
+")
+         :gsub("</li>", "
+")
+         :gsub("<h%d.->", "
+
+")
+         :gsub("</h%d>", "
+
+")
+    -- Strip remaining HTML tags, replacing with a single space
+    s = s:gsub("<[^>]+>", " ")
+    -- Clean multiple whitespace & non-breaking spaces
+    s = s:gsub("&nbsp;", " ")
+    s = s:gsub("[ 	]+", " ")
+    s = s:gsub("
+%s*
+%s*
++", "
+
+")
+    local clean = s:gsub("^%s+", ""):gsub("%s+$", "")
+    return clean
 end
 
 function Parser.cleanHtmlForEpub(html)
     if not html then return "<p></p>" end
     local clean_text = Parser.stripHtml(html)
-    -- Format into clean paragraphs
     local paragraphs = {}
-    for block in clean_text:gmatch("[^\r\n]+") do
+    for block in clean_text:gmatch("[^
+]+") do
         local p = block:gsub("^%s+", ""):gsub("%s+$", "")
         if #p > 0 then
-            if p:sub(1, 4) == "### " then
-                table.insert(paragraphs, string.format("<h3>%s</h3>", p:sub(5)))
-            else
-                table.insert(paragraphs, string.format("<p>%s</p>", p))
-            end
+            table.insert(paragraphs, string.format("<p>%s</p>", p))
         end
     end
     if #paragraphs == 0 then
@@ -83,57 +94,65 @@ function Parser.cleanHtmlForEpub(html)
     return table.concat(paragraphs, "\n")
 end
 
--- Parse RSS 2.0 XML
+-- Parse RSS 2.0 / Atom XML
 function Parser.parseRss(xml_text, max_items)
     max_items = max_items or 5
     local articles = {}
 
-    -- Extract items
-    for item_block in xml_text:gmatch("<item.->(.-)</item>") do
-        local title = item_block:match("<title.->(.-)</title>")
-        local link = item_block:match("<link.->(.-)</link>")
-        local desc = item_block:match("<content:encoded.->(.-)</content:encoded>")
-                  or item_block:match("<description.->(.-)</description>")
+    -- Extract RSS 2.0 items using multi-line pattern [%s%S]
+    for item_block in xml_text:gmatch("<item.->([%s%S]-)</item>") do
+        local title = item_block:match("<title.->([%s%S]-)</title>")
+        local link = item_block:match("<link.->([%s%S]-)</link>")
+        local desc = item_block:match("<content:encoded.->([%s%S]-)</content:encoded>")
+                  or item_block:match("<description.->([%s%S]-)</description>")
                   or ""
-        local author = item_block:match("<dc:creator.->(.-)</dc:creator>")
-                    or item_block:match("<author.->(.-)</author>")
+        local author = item_block:match("<dc:creator.->([%s%S]-)</dc:creator>")
+                    or item_block:match("<author.->([%s%S]-)</author>")
                     or ""
-        local pub_date = item_block:match("<pubDate.->(.-)</pubDate>") or ""
+        local pub_date = item_block:match("<pubDate.->([%s%S]-)</pubDate>") or ""
 
         if title and #title > 0 then
+            local clean_title = Parser.stripHtml(title)
+            local clean_desc = Parser.stripHtml(desc)
+            if #clean_desc > 1200 then clean_desc = clean_desc:sub(1, 1200) .. "..." end
+
             table.insert(articles, {
-                title = Parser.stripHtml(title),
-                link = unescapeXml(link or ""),
+                title = clean_title,
+                link = unescapeXml(link or ""):gsub("^%s+", ""):gsub("%s+$", ""),
                 author = Parser.stripHtml(author),
-                date = pub_date:gsub("%+.*$", ""):gsub("%s+$", ""),
-                summary = Parser.stripHtml(desc):sub(1, 1200),
+                date = pub_date:gsub("%+.*$", ""):gsub("^%s+", ""):gsub("%s+$", ""),
+                summary = clean_desc,
                 content_html = Parser.cleanHtmlForEpub(desc),
             })
             if #articles >= max_items then break end
         end
     end
 
-    -- If no <item>, check for Atom <entry>
+    -- If no RSS items found, check for Atom entries
     if #articles == 0 then
-        for entry_block in xml_text:gmatch("<entry.->(.-)</entry>") do
-            local title = entry_block:match("<title.->(.-)</title>")
+        for entry_block in xml_text:gmatch("<entry.->([%s%S]-)</entry>") do
+            local title = entry_block:match("<title.->([%s%S]-)</title>")
             local link = entry_block:match('<link.-href="([^"]+)"')
                       or entry_block:match("<link.-href='([^']+)'")
-                      or entry_block:match("<link.->(.-)</link>")
-            local desc = entry_block:match("<content.->(.-)</content>")
-                      or entry_block:match("<summary.->(.-)</summary>")
+                      or entry_block:match("<link.->([%s%S]-)</link>")
+            local desc = entry_block:match("<content.->([%s%S]-)</content>")
+                      or entry_block:match("<summary.->([%s%S]-)</summary>")
                       or ""
-            local author = entry_block:match("<name.->(.-)</name>") or ""
-            local date = entry_block:match("<updated.->(.-)</updated>")
-                      or entry_block:match("<published.->(.-)</published>") or ""
+            local author = entry_block:match("<name.->([%s%S]-)</name>") or ""
+            local date = entry_block:match("<updated.->([%s%S]-)</updated>")
+                      or entry_block:match("<published.->([%s%S]-)</published>") or ""
 
             if title and #title > 0 then
+                local clean_title = Parser.stripHtml(title)
+                local clean_desc = Parser.stripHtml(desc)
+                if #clean_desc > 1200 then clean_desc = clean_desc:sub(1, 1200) .. "..." end
+
                 table.insert(articles, {
-                    title = Parser.stripHtml(title),
-                    link = unescapeXml(link or ""),
+                    title = clean_title,
+                    link = unescapeXml(link or ""):gsub("^%s+", ""):gsub("%s+$", ""),
                     author = Parser.stripHtml(author),
                     date = date:sub(1, 10),
-                    summary = Parser.stripHtml(desc):sub(1, 1200),
+                    summary = clean_desc,
                     content_html = Parser.cleanHtmlForEpub(desc),
                 })
                 if #articles >= max_items then break end
@@ -148,10 +167,7 @@ end
 function Parser.parseRedditJson(json_text, max_items)
     max_items = max_items or 5
     local articles = {}
-
-    if not json or not json.decode then
-        return articles
-    end
+    if not json then return articles end
 
     local ok, data = pcall(json.decode, json_text)
     if not ok or not data or not data.data or not data.data.children then
@@ -160,36 +176,53 @@ function Parser.parseRedditJson(json_text, max_items)
 
     for idx, child in ipairs(data.data.children) do
         local post = child.data
-        if post and not post.stickied and not post.over_18 then
-            local title = post.title or "Untitled"
-            local author = "u/".. tostring(post.author or "anonymous")
-            local score = post.score or 0
-            local num_comments = post.num_comments or 0
+        if post and not post.stickied then
             local selftext = post.selftext or ""
-            local url = post.url or ("https://reddit.com".. (post.permalink or ""))
-
-            local body = selftext
-            if #body == 0 and post.url then
-                body = string.format("Link: %s\n\n(Top link post on Reddit with %d upvotes and %d comments)", post.url, score, num_comments)
-            else
-                body = string.format("%s\n\n[Reddit: %d upvotes • %d comments]", body, score, num_comments)
+            local clean_desc = Parser.stripHtml(selftext)
+            if #clean_desc > 1200 then clean_desc = clean_desc:sub(1, 1200) .. "..." end
+            if #clean_desc == 0 and post.url then
+                clean_desc = "Link post: " .. post.url
             end
 
             table.insert(articles, {
-                title = title,
-                link = url,
-                author = author,
-                date = "Reddit Top",
-                score = score,
-                summary = body:sub(1, 1200),
-                content_html = Parser.cleanHtmlForEpub(body),
+                title = post.title or "Untitled Post",
+                link = "https://reddit.com" .. (post.permalink or ""),
+                author = "u/" .. (post.author or "unknown"),
+                date = post.created_utc and os.date("%Y-%m-%d", post.created_utc) or "",
+                summary = clean_desc,
+                content_html = string.format("<p>%s</p><p><a href=\"%s\">%s</a></p>",
+                    clean_desc, post.url or "", post.url or ""),
             })
-
             if #articles >= max_items then break end
         end
     end
 
     return articles
+end
+
+-- Parse Hacker News Firebase JSON
+function Parser.parseHnItem(json_text)
+    if not json then return nil end
+    local ok, item = pcall(json.decode, json_text)
+    if not ok or not item or item.deleted or item.dead then
+        return nil
+    end
+
+    local clean_text = Parser.stripHtml(item.text or "")
+    if #clean_text > 1200 then clean_text = clean_text:sub(1, 1200) .. "..." end
+    if #clean_text == 0 and item.url then
+        clean_text = "Article link: " .. item.url
+    end
+
+    return {
+        title = item.title or "Untitled HN Story",
+        link = item.url or ("https://news.ycombinator.com/item?id=" .. tostring(item.id)),
+        author = item.by or "HN",
+        date = item.time and os.date("%Y-%m-%d", item.time) or "",
+        summary = clean_text,
+        content_html = string.format("<p>%s</p><p><a href=\"%s\">%s</a></p>",
+            clean_text, item.url or "", item.url or ""),
+    }
 end
 
 return Parser
