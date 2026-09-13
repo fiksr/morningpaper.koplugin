@@ -52,7 +52,7 @@ function Settings:setAiEnabled(b)
 end
 
 function Settings:getLanguage()
-    return self:get("language", "english") -- "english"or "serbian"
+    return self:get("language", "english") -- "english" or "serbian"
 end
 
 function Settings:setLanguage(lang)
@@ -99,8 +99,8 @@ function Settings:getApiKey(prov)
 
         local legacy = G_reader_settings:readSetting("bookrecap_api_key")
         if legacy and #legacy > 0 then
-            if prov == "groq"and legacy:sub(1, 4) == "gsk_"then return legacy end
-            if prov == "gemini"and legacy:sub(1, 4) == "AIza"then return legacy end
+            if prov == "groq" and legacy:sub(1, 4) == "gsk_" then return legacy end
+            if prov == "gemini" and legacy:sub(1, 4) == "AIza" then return legacy end
         end
     end
     return ""
@@ -114,7 +114,7 @@ end
 -- Feeds Management
 function Settings:getPresetFeeds()
     local saved = self:get("preset_feeds", nil)
-    if saved and type(saved) == "table"then
+    if saved and type(saved) == "table" then
         return saved
     end
     return DEFAULT_PRESET_FEEDS
@@ -172,11 +172,11 @@ function Settings:getOutputDirectory()
     end
 
     -- Smart default search for Kindle / Kobo
-    if lfs.attributes("/mnt/us/books", "mode") == "directory"then
+    if lfs.attributes("/mnt/us/books", "mode") == "directory" then
         return "/mnt/us/books"
-    elseif lfs.attributes("/mnt/us/documents", "mode") == "directory"then
+    elseif lfs.attributes("/mnt/us/documents", "mode") == "directory" then
         return "/mnt/us/documents"
-    elseif lfs.attributes("/mnt/us", "mode") == "directory"then
+    elseif lfs.attributes("/mnt/us", "mode") == "directory" then
         return "/mnt/us"
     end
 

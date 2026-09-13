@@ -100,8 +100,7 @@ function MorningPaper:addToMainMenu(menu_items)
             return self:getSubMenuItems()
         end,
         sub_item_table = self:getSubMenuItems(),
-    }
-end
+    } end
 
 -- Fetch and return sections with optional AI summaries
 function MorningPaper:fetchSections(on_done)
@@ -316,12 +315,12 @@ function MorningPaper:getSubMenuItems()
             sub_item_table = {
                 {
                     text = _("English"),
-                    checked_func = function() return self.settings:getLanguage() == "english"end,
+                    checked_func = function() return self.settings:getLanguage() == "english" end,
                     callback = function() self.settings:setLanguage("english") end,
                 },
                 {
                     text = _("Serbian (Srpski - Latin)"),
-                    checked_func = function() return self.settings:getLanguage() == "serbian"end,
+                    checked_func = function() return self.settings:getLanguage() == "serbian" end,
                     callback = function() self.settings:setLanguage("serbian") end,
                 },
             },
@@ -333,17 +332,17 @@ function MorningPaper:getSubMenuItems()
             sub_item_table = {
                 {
                     text = _("/mnt/us/books (Kindle Books Folder)"),
-                    checked_func = function() return self.settings:getOutputDirectory() == "/mnt/us/books"end,
+                    checked_func = function() return self.settings:getOutputDirectory() == "/mnt/us/books" end,
                     callback = function() self.settings:setOutputDirectory("/mnt/us/books") end,
                 },
                 {
                     text = _("/mnt/us/ (Kindle Root Directory)"),
-                    checked_func = function() return self.settings:getOutputDirectory() == "/mnt/us"end,
+                    checked_func = function() return self.settings:getOutputDirectory() == "/mnt/us" end,
                     callback = function() self.settings:setOutputDirectory("/mnt/us") end,
                 },
                 {
                     text = _("/mnt/us/documents (Kindle Documents)"),
-                    checked_func = function() return self.settings:getOutputDirectory() == "/mnt/us/documents"end,
+                    checked_func = function() return self.settings:getOutputDirectory() == "/mnt/us/documents" end,
                     callback = function() self.settings:setOutputDirectory("/mnt/us/documents") end,
                 },
                 {
@@ -362,12 +361,12 @@ function MorningPaper:getSubMenuItems()
             sub_item_table = {
                 {
                     text = _("Groq (Free & Blazing Fast)"),
-                    checked_func = function() return self.settings:getProvider() == "groq"end,
+                    checked_func = function() return self.settings:getProvider() == "groq" end,
                     callback = function() self.settings:setProvider("groq") end,
                 },
                 {
                     text = _("Google Gemini"),
-                    checked_func = function() return self.settings:getProvider() == "gemini"end,
+                    checked_func = function() return self.settings:getProvider() == "gemini" end,
                     callback = function() self.settings:setProvider("gemini") end,
                 },
             },

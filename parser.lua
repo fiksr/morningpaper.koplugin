@@ -16,7 +16,7 @@ else
 end
 
 local function unescapeXml(str)
-    if not str then return ""end
+    if not str then return "" end
     str = str:gsub("<!%[CDATA%[(.-)%]%]%s*>", "%1")
     str = str:gsub("&amp;", "&")
              :gsub("&lt;", "<")
@@ -39,7 +39,7 @@ local function unescapeXml(str)
 end
 
 function Parser.stripHtml(html)
-    if not html then return ""end
+    if not html then return "" end
     local s = unescapeXml(html)
     -- Remove scripts, styles, iframes
     s = s:gsub("<script.-</script>", "")
@@ -63,14 +63,14 @@ function Parser.stripHtml(html)
 end
 
 function Parser.cleanHtmlForEpub(html)
-    if not html then return "<p></p>"end
+    if not html then return "<p></p>" end
     local clean_text = Parser.stripHtml(html)
     -- Format into clean paragraphs
     local paragraphs = {}
     for block in clean_text:gmatch("[^\r\n]+") do
         local p = block:gsub("^%s+", ""):gsub("%s+$", "")
         if #p > 0 then
-            if p:sub(1, 4) == "### "then
+            if p:sub(1, 4) == "### " then
                 table.insert(paragraphs, string.format("<h3>%s</h3>", p:sub(5)))
             else
                 table.insert(paragraphs, string.format("<p>%s</p>", p))

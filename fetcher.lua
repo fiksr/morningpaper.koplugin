@@ -20,7 +20,7 @@ local function executeCurl(url, custom_ua)
     local cmd = string.format("curl -s -k -L -m 12 -A '%s' '%s' 2>/dev/null", ua, safe_url)
 
     local handle = io.popen(cmd)
-    if not handle then return nil, "Failed to start network request"end
+    if not handle then return nil, "Failed to start network request" end
     local output = handle:read("*a")
     handle:close()
 
@@ -46,7 +46,7 @@ end
 
 function Fetcher:fetchFeed(feed_obj, max_items)
     max_items = max_items or self.settings:getArticleLimit()
-    if feed_obj.type == "reddit"then
+    if feed_obj.type == "reddit" then
         local sub = feed_obj.subreddit or (feed_obj.url and feed_obj.url:match("r/([%w_]+)")) or "technology"
         return self:fetchReddit(sub, max_items)
     else
