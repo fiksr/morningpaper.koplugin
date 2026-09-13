@@ -16,23 +16,23 @@ end
 
 local function encodeJSON(val)
     if json and json.encode then return json.encode(val) end
-    if type(val) == "string" then
+    if type(val) == "string"then
         return string.format('"%s"', val:gsub('\\', '\\\\'):gsub('"', '\\"'):gsub('\n', '\\n'):gsub('\r', ''))
-    elseif type(val) == "number" or type(val) == "boolean" then
+    elseif type(val) == "number"or type(val) == "boolean"then
         return tostring(val)
-    elseif type(val) == "table" then
+    elseif type(val) == "table"then
         local is_array = (#val > 0)
         local parts = {}
         if is_array then
             for idx, v in ipairs(val) do
                 table.insert(parts, encodeJSON(v))
             end
-            return "[" .. table.concat(parts, ",") .. "]"
+            return "[".. table.concat(parts, ",") .. "]"
         else
             for k, v in pairs(val) do
                 table.insert(parts, string.format('"%s":%s', k, encodeJSON(v)))
             end
-            return "{" .. table.concat(parts, ",") .. "}"
+            return "{".. table.concat(parts, ",") .. "}"
         end
     end
     return "null"
@@ -62,7 +62,7 @@ function AIBriefing:sendChat(messages, system_prompt)
     end
 
     local url
-    local headers = { "Content-Type: application/json", "Authorization: Bearer " .. api_key }
+    local headers = { "Content-Type: application/json", "Authorization: Bearer ".. api_key }
     local all_messages = {}
     if system_prompt and #system_prompt > 0 then
         table.insert(all_messages, { role = "system", content = system_prompt })
@@ -71,7 +71,7 @@ function AIBriefing:sendChat(messages, system_prompt)
         table.insert(all_messages, m)
     end
 
-    if provider == "groq" then
+    if provider == "groq"then
         url = "https://api.groq.com/openai/v1/chat/completions"
     else -- gemini
         url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
@@ -93,15 +93,15 @@ function AIBriefing:sendChat(messages, system_prompt)
 
     local cmd = string.format("curl -s -k -m 15 -X POST %s -d '%s' '%s' 2>/dev/null", header_args, safe_body, url)
     local handle = io.popen(cmd)
-    if not handle then return nil, "Network execution failed" end
+    if not handle then return nil, "Network execution failed"end
     local raw = handle:read("*a")
     handle:close()
 
-    if not raw or #raw == 0 then return nil, "No response from AI server" end
+    if not raw or #raw == 0 then return nil, "No response from AI server"end
     local res = decodeJSON(raw)
-    if not res then return nil, "Invalid JSON from AI" end
+    if not res then return nil, "Invalid JSON from AI"end
     if res.error then
-        local msg = (type(res.error) == "table" and res.error.message) or tostring(res.error)
+        local msg = (type(res.error) == "table"and res.error.message) or tostring(res.error)
         return nil, msg
     end
     if res.choices and res.choices[1] and res.choices[1].message then

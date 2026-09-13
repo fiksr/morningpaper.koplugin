@@ -45,19 +45,19 @@ function MorningPaper:onDispatcherRegisterActions()
     Dispatcher:registerAction("morningpaper", {
         category = "none",
         event = "ShowMorningPaper",
-        title = _("🗞️ Morning Paper"),
+        title = _("️ Morning Paper"),
         general = true,
     })
     Dispatcher:registerAction("morningpaper_read", {
         category = "none",
         event = "ReadMorningPaper",
-        title = _("🗞️ Read Today's News"),
+        title = _("️ Read Today's News"),
         general = true,
     })
     Dispatcher:registerAction("morningpaper_generate", {
         category = "none",
         event = "GenerateMorningPaper",
-        title = _("⚡ Generate Today's Newspaper"),
+        title = _("Generate Today's Newspaper"),
         general = true,
     })
 end
@@ -65,7 +65,7 @@ end
 function MorningPaper:onShowMorningPaper()
     local Menu = require("ui/widget/menu")
     local menu = Menu:new{
-        title = _("🗞️ Morning Paper"),
+        title = _("️ Morning Paper"),
         item_table = self:getSubMenuItems(),
         is_borderless = true,
     }
@@ -94,7 +94,7 @@ end
 
 function MorningPaper:addToMainMenu(menu_items)
     menu_items.morningpaper = {
-        text = _("🗞️ Morning Paper"),
+        text = _("️ Morning Paper"),
         sorting_hint = "more_tools",
         sub_item_table_func = function()
             return self:getSubMenuItems()
@@ -160,7 +160,7 @@ function MorningPaper:showSectionBrowser(sections)
     local out = {}
     local today_str = os.date("%Y-%m-%d")
     table.insert(out, "==================================================")
-    table.insert(out, "🗞️ THE MORNING PAPER: " .. today_str)
+    table.insert(out, "️ THE MORNING PAPER: ".. today_str)
     table.insert(out, "Daily Curated News & Executive Briefing")
     table.insert(out, "==================================================\n")
 
@@ -170,7 +170,7 @@ function MorningPaper:showSectionBrowser(sections)
         for a_idx, art in ipairs(sec.articles) do
             table.insert(out, string.format("[%d.%d] %s", s_idx, a_idx, art.title))
             if art.author and #art.author > 0 then
-                table.insert(out, "Source: " .. art.author .. (art.date and (" • " .. art.date) or ""))
+                table.insert(out, "Source: ".. art.author .. (art.date and ("• ".. art.date) or ""))
             end
 
             if art.ai_summary and #art.ai_summary > 0 then
@@ -178,14 +178,14 @@ function MorningPaper:showSectionBrowser(sections)
                 for line in art.ai_summary:gmatch("[^\r\n]+") do
                     local clean = line:gsub("^[•%-%*]%s*", ""):gsub("^%s+", ""):gsub("%s+$", "")
                     if #clean > 0 then
-                        table.insert(out, "  • " .. clean)
+                        table.insert(out, "• ".. clean)
                     end
                 end
             end
 
             if art.summary and #art.summary > 0 then
                 table.insert(out, "\nSUMMARY:")
-                table.insert(out, "  " .. art.summary:gsub("\n+", " "))
+                table.insert(out, "".. art.summary:gsub("\n+", ""))
             end
             table.insert(out, "\n--------------------------------------------------\n")
         end
@@ -274,25 +274,25 @@ function MorningPaper:getSubMenuItems()
     local cur_dir = self.settings:getOutputDirectory()
     local items = {
         {
-            text = _("🗞️ Read Today's News (In-App Reader)"),
+            text = _("️ Read Today's News (In-App Reader)"),
             callback = function()
                 self:onReadInApp()
             end,
         },
         {
-            text = _("⚡ Download & Open Today's EPUB"),
+            text = _("Download & Open Today's EPUB"),
             callback = function()
                 self:onCompileEpub()
             end,
         },
         {
-            text = _("📡 Feed Subscriptions & Presets"),
+            text = _("Feed Subscriptions & Presets"),
             sub_item_table_func = function()
                 return self:getFeedSubMenuItems()
             end,
         },
         {
-            text = _("➕ Add Custom Feed (RSS / Substack / Reddit)"),
+            text = _("Add Custom Feed (RSS / Substack / Reddit)"),
             callback = function()
                 self:showAddCustomFeedDialog()
             end,
@@ -316,12 +316,12 @@ function MorningPaper:getSubMenuItems()
             sub_item_table = {
                 {
                     text = _("English"),
-                    checked_func = function() return self.settings:getLanguage() == "english" end,
+                    checked_func = function() return self.settings:getLanguage() == "english"end,
                     callback = function() self.settings:setLanguage("english") end,
                 },
                 {
                     text = _("Serbian (Srpski - Latin)"),
-                    checked_func = function() return self.settings:getLanguage() == "serbian" end,
+                    checked_func = function() return self.settings:getLanguage() == "serbian"end,
                     callback = function() self.settings:setLanguage("serbian") end,
                 },
             },
@@ -333,17 +333,17 @@ function MorningPaper:getSubMenuItems()
             sub_item_table = {
                 {
                     text = _("/mnt/us/books (Kindle Books Folder)"),
-                    checked_func = function() return self.settings:getOutputDirectory() == "/mnt/us/books" end,
+                    checked_func = function() return self.settings:getOutputDirectory() == "/mnt/us/books"end,
                     callback = function() self.settings:setOutputDirectory("/mnt/us/books") end,
                 },
                 {
                     text = _("/mnt/us/ (Kindle Root Directory)"),
-                    checked_func = function() return self.settings:getOutputDirectory() == "/mnt/us" end,
+                    checked_func = function() return self.settings:getOutputDirectory() == "/mnt/us"end,
                     callback = function() self.settings:setOutputDirectory("/mnt/us") end,
                 },
                 {
                     text = _("/mnt/us/documents (Kindle Documents)"),
-                    checked_func = function() return self.settings:getOutputDirectory() == "/mnt/us/documents" end,
+                    checked_func = function() return self.settings:getOutputDirectory() == "/mnt/us/documents"end,
                     callback = function() self.settings:setOutputDirectory("/mnt/us/documents") end,
                 },
                 {
@@ -362,12 +362,12 @@ function MorningPaper:getSubMenuItems()
             sub_item_table = {
                 {
                     text = _("Groq (Free & Blazing Fast)"),
-                    checked_func = function() return self.settings:getProvider() == "groq" end,
+                    checked_func = function() return self.settings:getProvider() == "groq"end,
                     callback = function() self.settings:setProvider("groq") end,
                 },
                 {
                     text = _("Google Gemini"),
-                    checked_func = function() return self.settings:getProvider() == "gemini" end,
+                    checked_func = function() return self.settings:getProvider() == "gemini"end,
                     callback = function() self.settings:setProvider("gemini") end,
                 },
             },
@@ -406,10 +406,10 @@ function MorningPaper:getFeedSubMenuItems()
 
     local customs = self.settings:getCustomFeeds()
     if #customs > 0 then
-        table.insert(sub, { text = "--- " .. _("Custom Subscriptions") .. " ---", enabled = false })
+        table.insert(sub, { text = "--- ".. _("Custom Subscriptions") .. "---", enabled = false })
         for idx, cf in ipairs(customs) do
             table.insert(sub, {
-                text = cf.name .. " (" .. cf.type:upper() .. ")",
+                text = cf.name .. "(".. cf.type:upper() .. ")",
                 checked_func = function() return cf.enabled end,
                 callback = function()
                     cf.enabled = not cf.enabled
@@ -444,7 +444,7 @@ function MorningPaper:showAddCustomFeedDialog()
 
                         if val:match("^r/[%w_]+") or not val:match("^https?://") then
                             local sub = val:gsub("^r/", "")
-                            self.settings:addCustomFeed("r/" .. sub, "reddit", sub)
+                            self.settings:addCustomFeed("r/".. sub, "reddit", sub)
                             UIManager:show(InfoMessage:new{ text = string.format(_("Added r/%s!"), sub), timeout = 3 })
                         else
                             local name = val:match("https?://([^/]+)") or "Custom Feed"

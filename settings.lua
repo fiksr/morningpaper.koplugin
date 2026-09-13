@@ -33,14 +33,14 @@ end
 
 function Settings:get(key, default)
     if not G_reader_settings then return default end
-    local val = G_reader_settings:readSetting("morningpaper_" .. key)
+    local val = G_reader_settings:readSetting("morningpaper_".. key)
     if val ~= nil then return val end
     return default
 end
 
 function Settings:save(key, val)
     if not G_reader_settings then return end
-    G_reader_settings:saveSetting("morningpaper_" .. key, val)
+    G_reader_settings:saveSetting("morningpaper_".. key, val)
 end
 
 function Settings:isAiEnabled()
@@ -52,7 +52,7 @@ function Settings:setAiEnabled(b)
 end
 
 function Settings:getLanguage()
-    return self:get("language", "english") -- "english" or "serbian"
+    return self:get("language", "english") -- "english"or "serbian"
 end
 
 function Settings:setLanguage(lang)
@@ -77,30 +77,30 @@ end
 
 function Settings:getModel()
     local prov = self:getProvider()
-    return self:get("model_" .. prov, DEFAULT_MODELS[prov] or "openai/gpt-oss-120b")
+    return self:get("model_".. prov, DEFAULT_MODELS[prov] or "openai/gpt-oss-120b")
 end
 
 function Settings:setModel(m)
     local prov = self:getProvider()
-    self:save("model_" .. prov, m)
+    self:save("model_".. prov, m)
 end
 
 function Settings:getApiKey(prov)
     prov = prov or self:getProvider()
-    local val = self:get("api_key_" .. prov, "")
+    local val = self:get("api_key_".. prov, "")
     if val and #val > 0 then return val end
 
     if G_reader_settings then
-        local shared = G_reader_settings:readSetting("bookrecap_api_key_" .. prov)
+        local shared = G_reader_settings:readSetting("bookrecap_api_key_".. prov)
         if shared and #shared > 0 then return shared end
 
-        local shared_mm = G_reader_settings:readSetting("mindmap_api_key_" .. prov)
+        local shared_mm = G_reader_settings:readSetting("mindmap_api_key_".. prov)
         if shared_mm and #shared_mm > 0 then return shared_mm end
 
         local legacy = G_reader_settings:readSetting("bookrecap_api_key")
         if legacy and #legacy > 0 then
-            if prov == "groq" and legacy:sub(1, 4) == "gsk_" then return legacy end
-            if prov == "gemini" and legacy:sub(1, 4) == "AIza" then return legacy end
+            if prov == "groq"and legacy:sub(1, 4) == "gsk_"then return legacy end
+            if prov == "gemini"and legacy:sub(1, 4) == "AIza"then return legacy end
         end
     end
     return ""
@@ -108,13 +108,13 @@ end
 
 function Settings:setApiKey(key, prov)
     prov = prov or self:getProvider()
-    self:save("api_key_" .. prov, key)
+    self:save("api_key_".. prov, key)
 end
 
 -- Feeds Management
 function Settings:getPresetFeeds()
     local saved = self:get("preset_feeds", nil)
-    if saved and type(saved) == "table" then
+    if saved and type(saved) == "table"then
         return saved
     end
     return DEFAULT_PRESET_FEEDS
@@ -142,7 +142,7 @@ end
 function Settings:addCustomFeed(name, feed_type, url_or_sub)
     local customs = self:getCustomFeeds()
     table.insert(customs, {
-        id = "custom_" .. os.time() .. "_" .. math.random(100, 999),
+        id = "custom_".. os.time() .. "_".. math.random(100, 999),
         name = name,
         type = feed_type,
         url = url_or_sub,
@@ -172,11 +172,11 @@ function Settings:getOutputDirectory()
     end
 
     -- Smart default search for Kindle / Kobo
-    if lfs.attributes("/mnt/us/books", "mode") == "directory" then
+    if lfs.attributes("/mnt/us/books", "mode") == "directory"then
         return "/mnt/us/books"
-    elseif lfs.attributes("/mnt/us/documents", "mode") == "directory" then
+    elseif lfs.attributes("/mnt/us/documents", "mode") == "directory"then
         return "/mnt/us/documents"
-    elseif lfs.attributes("/mnt/us", "mode") == "directory" then
+    elseif lfs.attributes("/mnt/us", "mode") == "directory"then
         return "/mnt/us"
     end
 

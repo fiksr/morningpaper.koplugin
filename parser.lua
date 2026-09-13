@@ -16,7 +16,7 @@ else
 end
 
 local function unescapeXml(str)
-    if not str then return "" end
+    if not str then return ""end
     str = str:gsub("<!%[CDATA%[(.-)%]%]%s*>", "%1")
     str = str:gsub("&amp;", "&")
              :gsub("&lt;", "<")
@@ -33,13 +33,13 @@ local function unescapeXml(str)
              :gsub("&#(%d+);", function(n)
                  local num = tonumber(n)
                  if num and num < 256 then return string.char(num) end
-                 return " "
+                 return ""
              end)
     return str
 end
 
 function Parser.stripHtml(html)
-    if not html then return "" end
+    if not html then return ""end
     local s = unescapeXml(html)
     -- Remove scripts, styles, iframes
     s = s:gsub("<script.-</script>", "")
@@ -56,21 +56,21 @@ function Parser.stripHtml(html)
     -- Strip remaining tags
     s = s:gsub("<[^>]+>", "")
     -- Clean multiple whitespace
-    s = s:gsub("&nbsp;", " ")
-    s = s:gsub("[ \t]+", " ")
+    s = s:gsub("&nbsp;", "")
+    s = s:gsub("[ \t]+", "")
     s = s:gsub("\n%s*\n%s*\n+", "\n\n")
     return s:gsub("^%s+", ""):gsub("%s+$", "")
 end
 
 function Parser.cleanHtmlForEpub(html)
-    if not html then return "<p></p>" end
+    if not html then return "<p></p>"end
     local clean_text = Parser.stripHtml(html)
     -- Format into clean paragraphs
     local paragraphs = {}
     for block in clean_text:gmatch("[^\r\n]+") do
         local p = block:gsub("^%s+", ""):gsub("%s+$", "")
         if #p > 0 then
-            if p:sub(1, 4) == "### " then
+            if p:sub(1, 4) == "### "then
                 table.insert(paragraphs, string.format("<h3>%s</h3>", p:sub(5)))
             else
                 table.insert(paragraphs, string.format("<p>%s</p>", p))
@@ -162,11 +162,11 @@ function Parser.parseRedditJson(json_text, max_items)
         local post = child.data
         if post and not post.stickied and not post.over_18 then
             local title = post.title or "Untitled"
-            local author = "u/" .. tostring(post.author or "anonymous")
+            local author = "u/".. tostring(post.author or "anonymous")
             local score = post.score or 0
             local num_comments = post.num_comments or 0
             local selftext = post.selftext or ""
-            local url = post.url or ("https://reddit.com" .. (post.permalink or ""))
+            local url = post.url or ("https://reddit.com".. (post.permalink or ""))
 
             local body = selftext
             if #body == 0 and post.url then

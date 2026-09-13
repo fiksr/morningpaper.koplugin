@@ -130,12 +130,12 @@ local function writeZipFile(entries, output_path)
 end
 
 local function escapeXml(str)
-    if not str then return "" end
+    if not str then return ""end
     return (str:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"):gsub('"', "&quot;"):gsub("'", "&apos;"))
 end
 
 local function formatBullets(text)
-    if not text then return "" end
+    if not text then return ""end
     local lines = {}
     for l in text:gmatch("[^\r\n]+") do
         local clean = l:gsub("^[•%-%*]%s*", ""):gsub("^%s+", ""):gsub("%s+$", "")
@@ -232,18 +232,18 @@ function EpubBuilder:buildEpub(sections, date_str)
     date_str = date_str or os.date("%Y-%m-%d")
     local out_dir = self.settings:getOutputDirectory()
     local epub_filename = string.format("MorningPaper_%s.epub", date_str)
-    local epub_path = out_dir .. "/" .. epub_filename
+    local epub_path = out_dir .. "/".. epub_filename
 
     local entries = {}
 
     -- 1. mimetype (first, uncompressed)
-    table.insert(entries, { "mimetype", "application/epub+zip" })
+    table.insert(entries, { "mimetype", "application/epub+zip"})
 
     -- 2. META-INF/container.xml
-    local container_xml = [[<?xml version="1.0" encoding="UTF-8"?>
-<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+    local container_xml = [[<?xml version="1.0"encoding="UTF-8"?>
+<container version="1.0"xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
   <rootfiles>
-    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+    <rootfile full-path="OEBPS/content.opf"media-type="application/oebps-package+xml"/>
   </rootfiles>
 </container>]]
     table.insert(entries, { "META-INF/container.xml", container_xml })
@@ -257,12 +257,12 @@ function EpubBuilder:buildEpub(sections, date_str)
         total_articles = total_articles + #s.articles
     end
 
-    local cover_html = string.format([[<?xml version="1.0" encoding="UTF-8"?>
+    local cover_html = string.format([[<?xml version="1.0"encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <title>The Morning Paper</title>
-  <link rel="stylesheet" type="text/css" href="style.css"/>
+  <link rel="stylesheet"type="text/css"href="style.css"/>
 </head>
 <body>
   <div class="masthead">
@@ -272,7 +272,7 @@ function EpubBuilder:buildEpub(sections, date_str)
     </div>
   </div>
   <div class="ai-summary">
-    <div class="ai-summary-title">🗞️ Today's Table of Contents</div>
+    <div class="ai-summary-title">️ Today's Table of Contents</div>
     <ul>
 ]], date_str, total_articles)
 
@@ -292,12 +292,12 @@ function EpubBuilder:buildEpub(sections, date_str)
 
     -- 5. Section Chapters (OEBPS/section_X.xhtml)
     for s_idx, sec in ipairs(sections) do
-        local sec_html = string.format([[<?xml version="1.0" encoding="UTF-8"?>
+        local sec_html = string.format([[<?xml version="1.0"encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <title>%s</title>
-  <link rel="stylesheet" type="text/css" href="style.css"/>
+  <link rel="stylesheet"type="text/css"href="style.css"/>
 </head>
 <body>
   <div class="section-title">%s</div>
@@ -306,7 +306,7 @@ function EpubBuilder:buildEpub(sections, date_str)
         for a_idx, art in ipairs(sec.articles) do
             local meta_str = escapeXml(art.author and #art.author > 0 and art.author or sec.title)
             if art.date and #art.date > 0 then
-                meta_str = meta_str .. " • " .. escapeXml(art.date)
+                meta_str = meta_str .. "• ".. escapeXml(art.date)
             end
 
             sec_html = sec_html .. string.format([[
@@ -318,7 +318,7 @@ function EpubBuilder:buildEpub(sections, date_str)
             if art.ai_summary and #art.ai_summary > 0 then
                 sec_html = sec_html .. string.format([[
     <div class="ai-summary">
-      <div class="ai-summary-title">⚡ Executive Briefing</div>
+      <div class="ai-summary-title"> Executive Briefing</div>
       %s
     </div>
 ]], formatBullets(art.ai_summary))
@@ -337,17 +337,17 @@ function EpubBuilder:buildEpub(sections, date_str)
     end
 
     -- 6. Table of Contents (OEBPS/toc.ncx)
-    local ncx = string.format([[<?xml version="1.0" encoding="UTF-8"?>
-<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+    local ncx = string.format([[<?xml version="1.0"encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/"version="2005-1">
   <head>
-    <meta name="dtb:uid" content="urn:uuid:morningpaper-%s"/>
-    <meta name="dtb:depth" content="1"/>
-    <meta name="dtb:totalPageCount" content="0"/>
-    <meta name="dtb:maxPageNumber" content="0"/>
+    <meta name="dtb:uid"content="urn:uuid:morningpaper-%s"/>
+    <meta name="dtb:depth"content="1"/>
+    <meta name="dtb:totalPageCount"content="0"/>
+    <meta name="dtb:maxPageNumber"content="0"/>
   </head>
   <docTitle><text>The Morning Paper (%s)</text></docTitle>
   <navMap>
-    <navPoint id="navPoint-1" playOrder="1">
+    <navPoint id="navPoint-1"playOrder="1">
       <navLabel><text>Front Page</text></navLabel>
       <content src="cover.xhtml"/>
     </navPoint>
@@ -355,19 +355,19 @@ function EpubBuilder:buildEpub(sections, date_str)
 
     for idx, s in ipairs(sections) do
         ncx = ncx .. string.format([[
-    <navPoint id="navPoint-%d" playOrder="%d">
+    <navPoint id="navPoint-%d"playOrder="%d">
       <navLabel><text>%s</text></navLabel>
       <content src="section_%d.xhtml"/>
     </navPoint>
 ]], idx + 1, idx + 1, escapeXml(s.title), idx)
     end
-    ncx = ncx .. "  </navMap>\n</ncx>"
+    ncx = ncx .. "</navMap>\n</ncx>"
     table.insert(entries, { "OEBPS/toc.ncx", ncx })
 
     -- 7. Package Descriptor (OEBPS/content.opf)
-    local opf = string.format([[<?xml version="1.0" encoding="UTF-8"?>
-<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="BookID" version="2.0">
-  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
+    local opf = string.format([[<?xml version="1.0"encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf"unique-identifier="BookID"version="2.0">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/"xmlns:opf="http://www.idpf.org/2007/opf">
     <dc:title>The Morning Paper (%s)</dc:title>
     <dc:creator>MorningPaper for KOReader</dc:creator>
     <dc:language>en</dc:language>
@@ -375,13 +375,13 @@ function EpubBuilder:buildEpub(sections, date_str)
     <dc:date>%s</dc:date>
   </metadata>
   <manifest>
-    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
-    <item id="style" href="style.css" media-type="text/css"/>
-    <item id="cover" href="cover.xhtml" media-type="application/xhtml+xml"/>
+    <item id="ncx"href="toc.ncx"media-type="application/x-dtbncx+xml"/>
+    <item id="style"href="style.css"media-type="text/css"/>
+    <item id="cover"href="cover.xhtml"media-type="application/xhtml+xml"/>
 ]], date_str, date_str, date_str)
 
     for idx, s in ipairs(sections) do
-        opf = opf .. string.format('    <item id="sec_%d" href="section_%d.xhtml" media-type="application/xhtml+xml"/>\n', idx, idx)
+        opf = opf .. string.format('    <item id="sec_%d"href="section_%d.xhtml"media-type="application/xhtml+xml"/>\n', idx, idx)
     end
     opf = opf .. [[
   </manifest>
@@ -391,14 +391,14 @@ function EpubBuilder:buildEpub(sections, date_str)
     for idx, s in ipairs(sections) do
         opf = opf .. string.format('    <itemref idref="sec_%d"/>\n', idx)
     end
-    opf = opf .. "  </spine>\n</package>"
+    opf = opf .. "</spine>\n</package>"
     table.insert(entries, { "OEBPS/content.opf", opf })
 
     -- 8. Write ZIP archive directly to destination
     pcall(os.remove, epub_path)
     local ok, err = writeZipFile(entries, epub_path)
 
-    if ok and lfs.attributes(epub_path, "mode") == "file" then
+    if ok and lfs.attributes(epub_path, "mode") == "file"then
         return true, epub_path
     else
         return false, tostring(err or "Failed to write EPUB file")
