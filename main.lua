@@ -45,13 +45,13 @@ function MorningPaper:onDispatcherRegisterActions()
     Dispatcher:registerAction("morningpaper", {
         category = "none",
         event = "ShowMorningPaper",
-        title = _("️ Morning Paper"),
+        title = _("Morning Paper"),
         general = true,
     })
     Dispatcher:registerAction("morningpaper_read", {
         category = "none",
         event = "ReadMorningPaper",
-        title = _("️ Read Today's News"),
+        title = _("Read Today's News"),
         general = true,
     })
     Dispatcher:registerAction("morningpaper_generate", {
@@ -65,7 +65,7 @@ end
 function MorningPaper:onShowMorningPaper()
     local Menu = require("ui/widget/menu")
     local menu = Menu:new{
-        title = _("️ Morning Paper"),
+        title = _("Morning Paper"),
         item_table = self:getSubMenuItems(),
         is_borderless = true,
     }
@@ -94,7 +94,7 @@ end
 
 function MorningPaper:addToMainMenu(menu_items)
     menu_items.morningpaper = {
-        text = _("️ Morning Paper"),
+        text = _("Morning Paper"),
         sorting_hint = "more_tools",
         sub_item_table_func = function()
             return self:getSubMenuItems()
@@ -275,7 +275,7 @@ function MorningPaper:getSubMenuItems()
     local cur_dir = self.settings:getOutputDirectory()
     local items = {
         {
-            text = _("️ Read Today's News (In-App Reader)"),
+            text = _(" Read Today's News (In-App Reader)"),
             callback = function()
                 self:onReadInApp()
             end,

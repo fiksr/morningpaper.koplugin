@@ -3,7 +3,8 @@ MorningPaper Network Fetcher.
 Retrieves RSS feeds, Substack newsletters, and Reddit top posts with robust curl handling.
 --]]--
 
-local Parser = require("parser")
+local plugin_dir = debug.getinfo(1, "S").source:match("@?(.*[/\])") or ""
+local Parser = dofile(plugin_dir .. "parser.lua")
 
 local Fetcher = {}
 Fetcher.__index = Fetcher
