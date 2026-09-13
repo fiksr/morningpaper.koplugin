@@ -112,11 +112,25 @@ function Settings:setApiKey(key, prov)
 end
 
 -- Feeds Management
+local function sanitizeFeedName(name)
+    if not name then return "" end
+    local s = name:gsub("[ -¤][
+8-91][
+8-91][
+8-91]", "")
+    s = s:gsub("984[d-9]", "")
+    s = s:gsub("^%s+", ""):gsub("%s+$", "")
+    return s
+end
+
 function Settings:getPresetFeeds()
-    local saved = self:get("preset_feeds", nil)
-    if saved and type(saved) == "table" then
-        return saved
+    local saved = self:get("preset_feeds")
+    local feeds = saved or DEFAULT_PRESET_FEEDS
+    for _, f in ipairs(feeds) do
+        f.name = sanitizeFeedName(f.name)
     end
+    return feeds
+end
     return DEFAULT_PRESET_FEEDS
 end
 
