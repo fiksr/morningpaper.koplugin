@@ -117,7 +117,8 @@ function Parser.parseRss(xml_text, max_items)
     if #articles == 0 then
         for entry_block in xml_text:gmatch("<entry.->(.-)</entry>") do
             local title = entry_block:match("<title.->(.-)</title>")
-            local link = entry_block:match('<link.-href=["'](.-)["']')
+            local link = entry_block:match('<link.-href="([^"]+)"')
+                      or entry_block:match("<link.-href='([^']+)'")
                       or entry_block:match("<link.->(.-)</link>")
             local desc = entry_block:match("<content.->(.-)</content>")
                       or entry_block:match("<summary.->(.-)</summary>")
