@@ -47,32 +47,18 @@ function Parser.stripHtml(html)
          :gsub("<iframe.-</iframe>", "")
          :gsub("<noscript.-</noscript>", "")
     -- Convert block elements to spaces and newlines
-    s = s:gsub("<br%s*/?>", "
-")
-         :gsub("</p>", "
-
-")
-         :gsub("</div>", "
-")
-         :gsub("</li>", "
-")
-         :gsub("<h%d.->", "
-
-")
-         :gsub("</h%d>", "
-
-")
+    s = s:gsub("<br%s*/?>", "\n")
+         :gsub("</p>", "\n\n")
+         :gsub("</div>", "\n")
+         :gsub("</li>", "\n")
+         :gsub("<h%d.->", "\n\n")
+         :gsub("</h%d>", "\n\n")
     -- Strip remaining HTML tags, replacing with a single space
     s = s:gsub("<[^>]+>", " ")
     -- Clean multiple whitespace & non-breaking spaces
     s = s:gsub("&nbsp;", " ")
-    s = s:gsub("[ 	]+", " ")
-    s = s:gsub("
-%s*
-%s*
-+", "
-
-")
+    s = s:gsub("[ \t\r]+", " ")
+    s = s:gsub("\n%s*\n%s*\n+", "\n\n")
     local clean = s:gsub("^%s+", ""):gsub("%s+$", "")
     return clean
 end
@@ -81,8 +67,7 @@ function Parser.cleanHtmlForEpub(html)
     if not html then return "<p></p>" end
     local clean_text = Parser.stripHtml(html)
     local paragraphs = {}
-    for block in clean_text:gmatch("[^
-]+") do
+    for block in clean_text:gmatch("[^\r\n]+") do
         local p = block:gsub("^%s+", ""):gsub("%s+$", "")
         if #p > 0 then
             table.insert(paragraphs, string.format("<p>%s</p>", p))
@@ -133,7 +118,7 @@ function Parser.parseRss(xml_text, max_items)
         for entry_block in xml_text:gmatch("<entry.->([%s%S]-)</entry>") do
             local title = entry_block:match("<title.->([%s%S]-)</title>")
             local link = entry_block:match('<link.-href="([^"]+)"')
-                      or entry_block:match("<link.-href='([^']+)'")
+                      or entry_block:match("<link.-href=\'([^\']+)\'")
                       or entry_block:match("<link.->([%s%S]-)</link>")
             local desc = entry_block:match("<content.->([%s%S]-)</content>")
                       or entry_block:match("<summary.->([%s%S]-)</summary>")
