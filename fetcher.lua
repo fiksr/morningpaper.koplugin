@@ -37,11 +37,20 @@ function Fetcher:fetchRssFeed(feed_url, max_items)
 end
 
 function Fetcher:fetchReddit(subreddit, max_items)
-    local url = string.format("https://www.reddit.com/r/%s/top.json?t=day&limit=10", subreddit)
-    local reddit_ua = "kindle:koreader.morningpaper:v1.0.0 (by /u/morningpaper)"
-    local raw, err = executeCurl(url, reddit_ua)
-    if not raw then return nil, err end
-    return Parser.parseRedditJson(raw, max_items)
+    -- 1. Try old.reddit.com JSON endpoint (bypasses www.reddit.com 403 blocks)
+    local url = string.format("https://old.reddit.com/r/%s/top.json?t=day&limit=10", subreddit)
+    local ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    local raw, err = executeCurl(url, ua)
+    if raw and #raw > 0 then
+        local articles = Parser.parseRedditJson(raw, max_items)
+        if articles and #articles > 0 then
+            return articles
+        end
+    end
+
+    -- 2. Fallback to old.reddit.com RSS feed
+    local rss_url = string.format("https://old.reddit.com/r/%s/.rss", subreddit)
+    return self:fetchRssFeed(rss_url, max_items)
 end
 
 function Fetcher:fetchFeed(feed_obj, max_items)
