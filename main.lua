@@ -77,7 +77,7 @@ function MorningPaper:onReadMorningPaper()
 end
 
 function MorningPaper:onGenerateMorningPaper()
-    self:onGenerateDailyEdition()
+    self:onCompileEpub()
 end
 
 function MorningPaper:init()
@@ -100,7 +100,8 @@ function MorningPaper:addToMainMenu(menu_items)
             return self:getSubMenuItems()
         end,
         sub_item_table = self:getSubMenuItems(),
-    } end
+    }
+end
 
 -- Fetch and return sections with optional AI summaries
 function MorningPaper:fetchSections(on_done)
@@ -275,7 +276,7 @@ function MorningPaper:getSubMenuItems()
     local cur_dir = self.settings:getOutputDirectory()
     local items = {
         {
-            text = _(" Read Today's News (In-App Reader)"),
+            text = _("Read Today's News (In-App Reader)"),
             callback = function()
                 self:onReadInApp()
             end,
