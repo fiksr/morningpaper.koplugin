@@ -1,17 +1,137 @@
 --[[--
 MorningPaper EPUB Compiler.
 Compiles fetched articles into a clean, physical-style Morning Newspaper EPUB.
+Zero-dependency, pure-Lua ZIP implementation (works on all Kindle/Kobo devices without external zip binary).
 --]]--
 
 local DataStorage = require("datastorage")
 local lfs = require("libs/libkoreader-lfs")
 
+local bit = bit or require("bit")
+local bxor = bit.bxor
+local rshift = bit.rshift
+local band = bit.band
+
 local EpubBuilder = {}
 EpubBuilder.__index = EpubBuilder
 
+-- Precompute CRC32 lookup table
+local crc_table = {}
+for i = 0, 255 do
+    local c = i
+    for j = 1, 8 do
+        if band(c, 1) ~= 0 then
+            c = bxor(rshift(c, 1), 0xEDB88320)
+        else
+            c = rshift(c, 1)
+        end
+    end
+    crc_table[i] = c
+end
+
+local function calc_crc32(str)
+    local crc = 0xFFFFFFFF
+    for i = 1, #str do
+        local b = str:byte(i)
+        local idx = band(bxor(crc, b), 0xFF)
+        crc = bxor(rshift(crc, 8), crc_table[idx])
+    end
+    return bxor(crc, 0xFFFFFFFF)
+end
+
+local function pack16(n)
+    return string.char(n % 256, math.floor(n / 256) % 256)
+end
+
+local function pack32(n)
+    if n < 0 then n = n + 4294967296 end
+    local b1 = n % 256
+    local b2 = math.floor(n / 256) % 256
+    local b3 = math.floor(n / 65536) % 256
+    local b4 = math.floor(n / 16777216) % 256
+    return string.char(b1, b2, b3, b4)
+end
+
+local function writeZipFile(entries, output_path)
+    local f, err = io.open(output_path, "wb")
+    if not f then return false, err end
+
+    local central_headers = {}
+    local offset = 0
+
+    for idx, e in ipairs(entries) do
+        local filename = e[1]
+        local data = e[2]
+        local crc = calc_crc32(data)
+        local size = #data
+
+        local local_hdr = "PK\x03\x04"
+            .. pack16(10)     -- version needed
+            .. pack16(0)      -- flags
+            .. pack16(0)      -- compression method: stored (0)
+            .. pack16(0)      -- mod time
+            .. pack16(0x5421) -- mod date
+            .. pack32(crc)    -- crc32
+            .. pack32(size)   -- comp size
+            .. pack32(size)   -- uncomp size
+            .. pack16(#filename)
+            .. pack16(0)      -- extra len
+
+        local local_offset = offset
+        f:write(local_hdr)
+        f:write(filename)
+        f:write(data)
+
+        local entry_size = #local_hdr + #filename + size
+        offset = offset + entry_size
+
+        local central_hdr = "PK\x01\x02"
+            .. pack16(10)     -- ver made
+            .. pack16(10)     -- ver need
+            .. pack16(0)      -- flags
+            .. pack16(0)      -- compression (0)
+            .. pack16(0)      -- mod time
+            .. pack16(0x5421) -- mod date
+            .. pack32(crc)
+            .. pack32(size)
+            .. pack32(size)
+            .. pack16(#filename)
+            .. pack16(0)      -- extra len
+            .. pack16(0)      -- comment len
+            .. pack16(0)      -- disk start
+            .. pack16(0)      -- int attr
+            .. pack32(0)      -- ext attr
+            .. pack32(local_offset)
+
+        table.insert(central_headers, { central_hdr, filename })
+    end
+
+    local central_dir_offset = offset
+    local central_dir_size = 0
+    for idx, ch in ipairs(central_headers) do
+        f:write(ch[1])
+        f:write(ch[2])
+        central_dir_size = central_dir_size + #ch[1] + #ch[2]
+    end
+
+    local num_entries = #entries
+    local eocd = "PK\x05\x06"
+        .. pack16(0) -- disk
+        .. pack16(0) -- start disk
+        .. pack16(num_entries)
+        .. pack16(num_entries)
+        .. pack32(central_dir_size)
+        .. pack32(central_dir_offset)
+        .. pack16(0) -- comment len
+
+    f:write(eocd)
+    f:close()
+    return true
+end
+
 local function escapeXml(str)
     if not str then return "" end
-    return str:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"):gsub('"', "&quot;"):gsub("'", "&apos;")
+    return (str:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"):gsub('"', "&quot;"):gsub("'", "&apos;"))
 end
 
 local function formatBullets(text)
@@ -114,44 +234,24 @@ function EpubBuilder:buildEpub(sections, date_str)
     local epub_filename = string.format("MorningPaper_%s.epub", date_str)
     local epub_path = out_dir .. "/" .. epub_filename
 
-    local build_dir = "/tmp/morningpaper_build"
-    if lfs.attributes("/tmp", "mode") ~= "directory" then
-        build_dir = DataStorage:getFullDataDir() .. "/cache/morningpaper_build"
-        pcall(lfs.mkdir, DataStorage:getFullDataDir() .. "/cache")
-    end
+    local entries = {}
 
-    pcall(os.execute, "rm -rf '" .. build_dir .. "'")
-    pcall(lfs.mkdir, build_dir)
-    pcall(lfs.mkdir, build_dir .. "/META-INF")
-    pcall(lfs.mkdir, build_dir .. "/OEBPS")
+    -- 1. mimetype (first, uncompressed)
+    table.insert(entries, { "mimetype", "application/epub+zip" })
 
-    -- 1. mimetype (MUST be first and uncompressed)
-    local f_mime = io.open(build_dir .. "/mimetype", "w")
-    if f_mime then
-        f_mime:write("application/epub+zip")
-        f_mime:close()
-    end
-
-    -- 2. container.xml
-    local f_cont = io.open(build_dir .. "/META-INF/container.xml", "w")
-    if f_cont then
-        f_cont:write([[<?xml version="1.0" encoding="UTF-8"?>
+    -- 2. META-INF/container.xml
+    local container_xml = [[<?xml version="1.0" encoding="UTF-8"?>
 <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
   <rootfiles>
     <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
   </rootfiles>
-</container>]])
-        f_cont:close()
-    end
+</container>]]
+    table.insert(entries, { "META-INF/container.xml", container_xml })
 
-    -- 3. style.css
-    local f_css = io.open(build_dir .. "/OEBPS/style.css", "w")
-    if f_css then
-        f_css:write(CSS_STYLE)
-        f_css:close()
-    end
+    -- 3. OEBPS/style.css
+    table.insert(entries, { "OEBPS/style.css", CSS_STYLE })
 
-    -- 4. Front Page (cover.xhtml)
+    -- 4. Front Page (OEBPS/cover.xhtml)
     local total_articles = 0
     for idx, s in ipairs(sections) do
         total_articles = total_articles + #s.articles
@@ -188,14 +288,9 @@ function EpubBuilder:buildEpub(sections, date_str)
   </p>
 </body>
 </html>]]
+    table.insert(entries, { "OEBPS/cover.xhtml", cover_html })
 
-    local f_cover = io.open(build_dir .. "/OEBPS/cover.xhtml", "w")
-    if f_cover then
-        f_cover:write(cover_html)
-        f_cover:close()
-    end
-
-    -- 5. Section Chapters
+    -- 5. Section Chapters (OEBPS/section_X.xhtml)
     for s_idx, sec in ipairs(sections) do
         local sec_html = string.format([[<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
@@ -220,7 +315,6 @@ function EpubBuilder:buildEpub(sections, date_str)
     <div class="article-meta">%s</div>
 ]], escapeXml(art.title), meta_str)
 
-            -- AI Summary box if generated
             if art.ai_summary and #art.ai_summary > 0 then
                 sec_html = sec_html .. string.format([[
     <div class="ai-summary">
@@ -230,7 +324,6 @@ function EpubBuilder:buildEpub(sections, date_str)
 ]], formatBullets(art.ai_summary))
             end
 
-            -- Body text
             sec_html = sec_html .. string.format([[
     <div class="article-body">
       %s
@@ -240,15 +333,10 @@ function EpubBuilder:buildEpub(sections, date_str)
         end
 
         sec_html = sec_html .. "</body>\n</html>"
-
-        local f_sec = io.open(string.format("%s/OEBPS/section_%d.xhtml", build_dir, s_idx), "w")
-        if f_sec then
-            f_sec:write(sec_html)
-            f_sec:close()
-        end
+        table.insert(entries, { string.format("OEBPS/section_%d.xhtml", s_idx), sec_html })
     end
 
-    -- 6. Table of Contents (toc.ncx)
+    -- 6. Table of Contents (OEBPS/toc.ncx)
     local ncx = string.format([[<?xml version="1.0" encoding="UTF-8"?>
 <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
   <head>
@@ -274,14 +362,9 @@ function EpubBuilder:buildEpub(sections, date_str)
 ]], idx + 1, idx + 1, escapeXml(s.title), idx)
     end
     ncx = ncx .. "  </navMap>\n</ncx>"
+    table.insert(entries, { "OEBPS/toc.ncx", ncx })
 
-    local f_ncx = io.open(build_dir .. "/OEBPS/toc.ncx", "w")
-    if f_ncx then
-        f_ncx:write(ncx)
-        f_ncx:close()
-    end
-
-    -- 7. content.opf
+    -- 7. Package Descriptor (OEBPS/content.opf)
     local opf = string.format([[<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" unique-identifier="BookID" version="2.0">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
@@ -309,28 +392,16 @@ function EpubBuilder:buildEpub(sections, date_str)
         opf = opf .. string.format('    <itemref idref="sec_%d"/>\n', idx)
     end
     opf = opf .. "  </spine>\n</package>"
+    table.insert(entries, { "OEBPS/content.opf", opf })
 
-    local f_opf = io.open(build_dir .. "/OEBPS/content.opf", "w")
-    if f_opf then
-        f_opf:write(opf)
-        f_opf:close()
-    end
-
-    -- 8. Zip into final EPUB file
+    -- 8. Write ZIP archive directly to destination
     pcall(os.remove, epub_path)
-    local zip_cmd = string.format(
-        "cd '%s' && zip -q -0 -X '%s' mimetype && zip -q -9 -r '%s' META-INF OEBPS",
-        build_dir, epub_path, epub_path
-    )
-    local ret = os.execute(zip_cmd)
+    local ok, err = writeZipFile(entries, epub_path)
 
-    -- Cleanup build dir
-    pcall(os.execute, "rm -rf '" .. build_dir .. "'")
-
-    if lfs.attributes(epub_path, "mode") == "file" then
+    if ok and lfs.attributes(epub_path, "mode") == "file" then
         return true, epub_path
     else
-        return false, "Failed to package EPUB file via zip utility"
+        return false, tostring(err or "Failed to write EPUB file")
     end
 end
 
