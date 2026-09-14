@@ -236,7 +236,7 @@ function MorningPaper:onCompileEpub()
     end)
 end
 
-function MorningPaper:showSetFolderDialog()
+function MorningPaper:showSetFolderDialog(touchmenu_instance)
     local cur_dir = self.settings:getOutputDirectory()
     local dialog
     dialog = InputDialog:new{
@@ -248,7 +248,14 @@ function MorningPaper:showSetFolderDialog()
                 {
                     text = _("Cancel"),
                     id = "close",
-                    callback = function() UIManager:close(dialog) end,
+                    callback = function()
+                        UIManager:close(dialog)
+                        if touchmenu_instance then
+                            touchmenu_instance:updateItems()
+                        else
+                            self:onShowMorningPaper()
+                        end
+                    end,
                 },
                 {
                     text = _("Save"),
@@ -260,8 +267,13 @@ function MorningPaper:showSetFolderDialog()
                             self.settings:setOutputDirectory(val)
                             UIManager:show(InfoMessage:new{
                                 text = string.format(_("Save folder updated to:\n%s"), val),
-                                timeout = 3,
+                                timeout = 2,
                             })
+                        end
+                        if touchmenu_instance then
+                            touchmenu_instance:updateItems()
+                        else
+                            self:onShowMorningPaper()
                         end
                     end,
                 },
@@ -295,8 +307,8 @@ function MorningPaper:getSubMenuItems()
         },
         {
             text = _("Add Custom Feed (RSS / Substack / Reddit)"),
-            callback = function()
-                self:showAddCustomFeedDialog()
+            callback = function(touchmenu_instance)
+                self:showAddCustomFeedDialog(touchmenu_instance)
             end,
         },
         {
@@ -305,6 +317,7 @@ function MorningPaper:getSubMenuItems()
                 return string.format(_("AI Executive Briefing: %s"), status)
             end,
             checked_func = function() return self.settings:isAiEnabled() end,
+            keep_menu_open = true,
             callback = function()
                 self.settings:setAiEnabled(not self.settings:isAiEnabled())
             end,
@@ -319,11 +332,13 @@ function MorningPaper:getSubMenuItems()
                 {
                     text = _("English"),
                     checked_func = function() return self.settings:getLanguage() == "english" end,
+                    keep_menu_open = true,
                     callback = function() self.settings:setLanguage("english") end,
                 },
                 {
                     text = _("Serbian (Srpski - Latin)"),
                     checked_func = function() return self.settings:getLanguage() == "serbian" end,
+                    keep_menu_open = true,
                     callback = function() self.settings:setLanguage("serbian") end,
                 },
             },
@@ -336,21 +351,24 @@ function MorningPaper:getSubMenuItems()
                 {
                     text = _("/mnt/us/books (Kindle Books Folder)"),
                     checked_func = function() return self.settings:getOutputDirectory() == "/mnt/us/books" end,
+                    keep_menu_open = true,
                     callback = function() self.settings:setOutputDirectory("/mnt/us/books") end,
                 },
                 {
                     text = _("/mnt/us/ (Kindle Root Directory)"),
                     checked_func = function() return self.settings:getOutputDirectory() == "/mnt/us" end,
+                    keep_menu_open = true,
                     callback = function() self.settings:setOutputDirectory("/mnt/us") end,
                 },
                 {
                     text = _("/mnt/us/documents (Kindle Documents)"),
                     checked_func = function() return self.settings:getOutputDirectory() == "/mnt/us/documents" end,
+                    keep_menu_open = true,
                     callback = function() self.settings:setOutputDirectory("/mnt/us/documents") end,
                 },
                 {
                     text = _("Custom Folder Path..."),
-                    callback = function() self:showSetFolderDialog() end,
+                    callback = function(touchmenu_instance) self:showSetFolderDialog(touchmenu_instance) end,
                 },
             },
         },
@@ -365,11 +383,13 @@ function MorningPaper:getSubMenuItems()
                 {
                     text = _("Groq (Free & Blazing Fast)"),
                     checked_func = function() return self.settings:getProvider() == "groq" end,
+                    keep_menu_open = true,
                     callback = function() self.settings:setProvider("groq") end,
                 },
                 {
                     text = _("Google Gemini"),
                     checked_func = function() return self.settings:getProvider() == "gemini" end,
+                    keep_menu_open = true,
                     callback = function() self.settings:setProvider("gemini") end,
                 },
             },
@@ -400,6 +420,7 @@ function MorningPaper:getFeedSubMenuItems()
         table.insert(sub, {
             text = f.name,
             checked_func = function() return f.enabled end,
+            keep_menu_open = true,
             callback = function()
                 self.settings:togglePresetFeed(f.id)
             end,
@@ -408,11 +429,12 @@ function MorningPaper:getFeedSubMenuItems()
 
     local customs = self.settings:getCustomFeeds()
     if #customs > 0 then
-        table.insert(sub, { text = "--- ".. _("Custom Subscriptions") .. "---", enabled = false })
+        table.insert(sub, { text = "--- ".. _("Custom Subscriptions") .. " ---", enabled = false })
         for idx, cf in ipairs(customs) do
             table.insert(sub, {
-                text = cf.name .. "(".. cf.type:upper() .. ")",
+                text = cf.name .. " (".. cf.type:upper() .. ")",
                 checked_func = function() return cf.enabled end,
+                keep_menu_open = true,
                 callback = function()
                     cf.enabled = not cf.enabled
                     self.settings:save("custom_feeds", customs)
@@ -424,7 +446,7 @@ function MorningPaper:getFeedSubMenuItems()
     return sub
 end
 
-function MorningPaper:showAddCustomFeedDialog()
+function MorningPaper:showAddCustomFeedDialog(touchmenu_instance)
     local dialog
     dialog = InputDialog:new{
         title = _("Add RSS Feed, Substack, or Subreddit"),
@@ -434,7 +456,14 @@ function MorningPaper:showAddCustomFeedDialog()
                 {
                     text = _("Cancel"),
                     id = "close",
-                    callback = function() UIManager:close(dialog) end,
+                    callback = function()
+                        UIManager:close(dialog)
+                        if touchmenu_instance then
+                            touchmenu_instance:updateItems()
+                        else
+                            self:onShowMorningPaper()
+                        end
+                    end,
                 },
                 {
                     text = _("Add"),
@@ -442,16 +471,29 @@ function MorningPaper:showAddCustomFeedDialog()
                     callback = function()
                         local val = dialog:getInputText():gsub("^%s+", ""):gsub("%s+$", "")
                         UIManager:close(dialog)
-                        if #val == 0 then return end
+                        if #val == 0 then
+                            if touchmenu_instance then
+                                touchmenu_instance:updateItems()
+                            else
+                                self:onShowMorningPaper()
+                            end
+                            return
+                        end
 
                         if val:match("^r/[%w_]+") or not val:match("^https?://") then
                             local sub = val:gsub("^r/", "")
                             self.settings:addCustomFeed("r/".. sub, "reddit", sub)
-                            UIManager:show(InfoMessage:new{ text = string.format(_("Added r/%s!"), sub), timeout = 3 })
+                            UIManager:show(InfoMessage:new{ text = string.format(_("Added r/%s!"), sub), timeout = 2 })
                         else
                             local name = val:match("https?://([^/]+)") or "Custom Feed"
                             self.settings:addCustomFeed(name, "rss", val)
-                            UIManager:show(InfoMessage:new{ text = string.format(_("Added %s!"), name), timeout = 3 })
+                            UIManager:show(InfoMessage:new{ text = string.format(_("Added %s!"), name), timeout = 2 })
+                        end
+
+                        if touchmenu_instance then
+                            touchmenu_instance:updateItems()
+                        else
+                            self:onShowMorningPaper()
                         end
                     end,
                 },
