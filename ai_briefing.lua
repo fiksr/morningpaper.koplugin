@@ -80,7 +80,7 @@ function AIBriefing:sendChat(messages, system_prompt)
     local payload = {
         model = model,
         messages = all_messages,
-        temperature = 0.2,
+        temperature = (provider ~= "gemini") and 0.2 or nil,
         max_tokens = 300,
     }
 
